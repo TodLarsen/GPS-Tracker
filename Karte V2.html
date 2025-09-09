@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>GPS Track mit Leaflet und ThingSpeak</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+    crossorigin=""
+  />
+  <style>
+    #map {
+      height: 100vh; /* Ganzer Bildschirm */
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+  <script>
+    const channelID = 3064266; // Zum Beispiel 3064266
+    const readAPIKey = "X30WJCWWDM331H30"; // Deines ThingSpeak Leseschlüssel
+    const resultsLimit = 5000; // Anzahl der Punkte, die abgefragt werden
+
+    // Leaflet Karte initialisieren
+    const map = L.map("map").setView([51.1657, 10.4515], 6); // Mittelpunkt Deutschland
+
+    // OpenStreetMap als Kartenlayer
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution:
+        '© OpenStreetMap-Mitwirkende',
+    }).addTo(map);
+
+    // GPS-Daten von ThingSpeak laden und Track darstellen
+    async function ladeGPSDaten() {
+      const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=${resultsLimit}`;
+
+      try {
+        const response = await fetch(url);
+        const daten = await response.json();
+
+        let latlngs = [];
+        daten.feeds.forEach((entry) => {
+          let lat = parseFloat(entry.field1);
+          let lng = parseFloat(entry.field2);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            latlngs.push([lat, lng]);
+          }
+        });
+
+        if (latlngs.length > 0) {
+          // Karte auf den letzten Punkt zentrieren
+          map.setView(latlngs[latlngs.length - 1], 15);
+
+          // Marker für die aktuelle Position
+          L.marker(latlngs[latlngs.length - 1])
+            .addTo(map)
+            .bindPopup("Aktuelle Position")
+            .openPopup();
+
+          // Polyline für Wegverlauf hinzufügen
+          L.polyline(latlngs, { color: "blue" }).addTo(map);
+        } else {
+          alert("Keine gültigen GPS-Daten gefunden.");
+        }
+      } catch (error) {
+        alert("Fehler beim Laden der GPS-Daten: " + error);
+      }
+    }
+
+    ladeGPSDaten();
+  </script>
+</body>
+</html>
